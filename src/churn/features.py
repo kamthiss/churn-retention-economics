@@ -70,16 +70,18 @@ def history(conn, t, schema="raw"):
     return orders, treated, customers
 
 
-def features(orders, treated, customers, t):
-    """Признаки клиентов, активных на t."""
+def features(orders, treated, customers, t, n=CHURN_N):
+    """Признаки клиентов с покупкой за n дней до t; при n=None — всех, у кого была покупка."""
     t = pd.Timestamp(t)
     o = orders.assign(order_date=pd.to_datetime(orders["order_date"]))
     # порядок строк фиксирует порядок сложения float: иначе суммы зависят от того, как база отдала строки
     o = o.sort_values(["customer_id", "order_date", "order_id"], ignore_index=True)
     p = o[o["status"] == "delivered"].copy()
     p["days"] = (t - p["order_date"]).dt.days
-    active = p.loc[p["days"] <= CHURN_N, "customer_id"].unique()
-    p = p[p["customer_id"].isin(active)].reset_index(drop=True)
+    if n is not None:
+        active = p.loc[p["days"] <= n, "customer_id"].unique()
+        p = p[p["customer_id"].isin(active)]
+    p = p.reset_index(drop=True)
     cid = p["customer_id"]
 
     df = p.groupby("customer_id").agg(
