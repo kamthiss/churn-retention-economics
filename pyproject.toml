@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 name = "churn"
 version = "0.1.0"
 requires-python = ">=3.12"
-dependencies = ["numpy", "pandas", "pyarrow", "scipy", "psycopg[binary]"]
+dependencies = ["numpy", "pandas", "pyarrow", "scipy", "psycopg[binary]", "scikit-learn"]
 
 [tool.setuptools.packages.find]
 where = ["src"]

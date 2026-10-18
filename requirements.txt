@@ -4,3 +4,8 @@ pyarrow
 scipy
 pytest
 psycopg[binary]
+scikit-learn
+matplotlib
+jupyter
+nbconvert
+ipykernel
