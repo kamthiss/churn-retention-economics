@@ -6,10 +6,12 @@ MARTS = Path("sql/marts")
 
 
 def build(marts=MARTS):
-    """Пересоздаёт схему mart и выполняет sql/marts/*.sql по порядку номеров."""
+    """Пересоздаёт таблицы mart из sql/marts/*.sql по порядку номеров."""
     with connect() as conn:
-        conn.execute("drop schema if exists mart cascade; create schema mart")
+        # схему целиком не удаляем: в ней же лежит mart.model_dataset из churn.features
+        conn.execute("create schema if not exists mart")
         for path in sorted(Path(marts).glob("*.sql")):
+            conn.execute(f"drop table if exists mart.{path.stem.split('_', 1)[1]}")
             conn.execute(path.read_text())
 
 

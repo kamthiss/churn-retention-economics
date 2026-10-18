@@ -57,3 +57,7 @@ UNSUB_ALIVE_P = 0.03
 THEORY_N = 100_000
 THRESHOLDS = (60, 90, 120, 180)
 HORIZON = 365
+
+CHURN_N = 120
+TRAIN_POINTS = tuple(date(2024 + m // 12, m % 12 + 1, 1) for m in range(6, 21))
+TEST_POINT = date(2026, 1, 1)
