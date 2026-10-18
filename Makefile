@@ -1,6 +1,6 @@
 PY = .venv/bin/python
 
-.PHONY: data test db-up db-down load test-db test-all reset-db
+.PHONY: data test db-up db-down load marts test-db test-all reset-db
 
 data:
 	$(PY) -m churn.generate
@@ -17,13 +17,16 @@ db-down:
 load:
 	$(PY) -m churn.load
 
+marts:
+	$(PY) -m churn.marts
+
 test-db:
 	$(PY) -m pytest -q -m db
 
 test-all:
-	$(MAKE) data db-up load
+	$(MAKE) data db-up load marts
 	$(PY) -m pytest -q
 
 reset-db:
 	docker compose down -v
-	$(MAKE) db-up data load
+	$(MAKE) db-up data load marts
