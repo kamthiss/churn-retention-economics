@@ -7,7 +7,9 @@ import pytest
 from churn.db import connect
 from churn.features import FEATURES
 from churn.model import load, split
-from churn.uplift import boot_weights, compare, effect, fit_models, outcomes, participants, profit, risk, top
+from churn.uplift import (
+    boot_weights, compare, effect, fit_models, group_size, outcomes, participants, profit, risk, top,
+)
 
 T = date(2025, 10, 1)
 
@@ -84,3 +86,7 @@ def test_bootstrap_seed():
                        "bought_90": rng.random(500) < 0.3, "bought_120": rng.random(500) < 0.3,
                        "redeemed": treat & (rng.random(500) < 0.2)})
     assert effect(df, seed=3) == effect(df, seed=3)
+
+
+def test_group_size():
+    assert group_size(1000, 100) == 1570

@@ -1,4 +1,5 @@
 from datetime import timedelta
+from statistics import NormalDist
 
 import numpy as np
 import pandas as pd
@@ -6,7 +7,9 @@ from sklearn.metrics import average_precision_score
 
 from churn.features import features, history, query
 from churn.model import design, fit_boosting, fit_logreg, fit_rule, rule_score
-from churn.params import CAMPAIGN_DATE, CAMPAIGN_DISCOUNT, CAMPAIGN_PROMO, REPEAT_SEGMENT, SEED, TEST_POINT
+from churn.params import (
+    CAMPAIGN_DATE, CAMPAIGN_DISCOUNT, CAMPAIGN_PROMO, ELIGIBLE_GAP, REPEAT_SEGMENT, SEED, TEST_POINT,
+)
 
 SMS = 5
 N_BOOT = 2000
@@ -189,3 +192,36 @@ def accessories_check(conn, test, scores, n=180, t=TEST_POINT):
     rows = {k: {"доля churn": v.mean(), **{s: average_precision_score(v, sc[acc]) for s, sc in scores.items()}}
             for k, v in y.items()}
     return pd.DataFrame(rows).T.rename_axis("порог")
+
+
+def spread(df, margin="margin_180"):
+    """sd маржи по сегментам в treatment и control и объединённое sd."""
+    rows = {}
+    for seg, d in df.groupby("segment", observed=True):
+        t, m = d["treat"].to_numpy(bool), d[margin].to_numpy(float)
+        nt, nc, st, sc = t.sum(), (~t).sum(), m[t].std(ddof=1), m[~t].std(ddof=1)
+        pooled = np.sqrt(((nt - 1) * st**2 + (nc - 1) * sc**2) / (nt + nc - 2))
+        rows[seg] = {"n_t": nt, "n_c": nc, "sd_t": st, "sd_c": sc, "sd": pooled}
+    return pd.DataFrame(rows).T
+
+
+def group_size(sd, delta, alpha=0.05, power=0.8):
+    """Размер каждой из двух равных групп для двустороннего теста разницы средних."""
+    z = NormalDist().inv_cdf(1 - alpha / 2) + NormalDist().inv_cdf(power)
+    return np.ceil(2 * z**2 * np.square(sd) / np.square(delta)).astype(int)
+
+
+def half_width(sd_t, sd_c, n, control, alpha=0.05):
+    """Полуширина ДИ разницы средних при n клиентах и доле control."""
+    z = NormalDist().inv_cdf(1 - alpha / 2)
+    return z * np.sqrt(np.square(sd_t) / (n * (1 - control)) + np.square(sd_c) / (n * control))
+
+
+def pause_flow(conn, year=2025, gap=ELIGIBLE_GAP[0]):
+    """Сколько пауз каждого сегмента достигают gap дней в каждом месяце year."""
+    p = query(conn, """
+        select order_date + %s as hit, purchase_n, segment from mart.pauses
+        where (gap >= %s or gap is null) and extract(year from order_date + %s) = %s""", (gap, gap, gap, year))
+    seg = np.where(p["purchase_n"] == 1, "one_time", p["segment"].map(REPEAT_SEGMENT))
+    month = pd.to_datetime(p["hit"]).dt.to_period("M")
+    return pd.crosstab(month, pd.Categorical(seg, categories=SEGMENTS)).rename_axis(index="месяц", columns=None)
