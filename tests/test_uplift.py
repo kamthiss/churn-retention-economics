@@ -90,3 +90,18 @@ def test_bootstrap_seed():
 
 def test_group_size():
     assert group_size(1000, 100) == 1570
+
+
+@pytest.mark.filterwarnings("error")
+def test_empty_group_nan():
+    treat = np.ones(50, bool)
+    margin = np.arange(50.0)
+    assert np.isnan(profit(margin, treat))
+    assert np.isnan(profit(margin, treat, boot_weights(treat, n=10))).all()
+    assert np.isnan(profit(margin[:0], treat[:0]))
+    df = pd.DataFrame({"treat": treat, "margin_180": margin, "bought_90": margin < 10, "bought_120": margin < 20,
+                       "redeemed": margin < 5})
+    row = effect(df)
+    assert row["n_c"] == 0 and row["margin_t"] == pytest.approx(24.5)
+    for k in ["b90_c", "b90_diff", "b90_lo", "b120_hi", "margin_c", "profit", "profit_lo", "profit_hi", "total"]:
+        assert np.isnan(row[k]), k

@@ -81,9 +81,16 @@ def boot_weights(treat, n=N_BOOT, seed=SEED):
     return w
 
 
+def mean(x):
+    """Среднее; NaN для пустого массива."""
+    return x.mean() if len(x) else np.nan
+
+
 def profit(margin, treat, w=None):
     """Прибыль на получателя: средняя маржа treatment − control − SMS; с весами — по каждому повтору."""
     margin, treat = np.asarray(margin, float), np.asarray(treat, bool)
+    if treat.all() or not treat.any():
+        return np.nan if w is None else np.full(len(w), np.nan)
     w = np.ones(len(margin)) if w is None else w
     wt, wc = w * treat, w * ~treat
     return (wt @ margin) / wt.sum(-1) - (wc @ margin) / wc.sum(-1) - SMS
@@ -101,13 +108,13 @@ def effect(df, margin="margin_180", seed=SEED):
     row = {"n_t": nt, "n_c": nc}
     for d in BOUGHT:
         y = df[f"bought_{d}"].to_numpy(float)
-        a, b = y[t].mean(), y[~t].mean()
+        a, b = mean(y[t]), mean(y[~t])
         se = np.sqrt(a * (1 - a) / nt + b * (1 - b) / nc)
         row |= {f"b{d}_t": a, f"b{d}_c": b, f"b{d}_diff": a - b,
                 f"b{d}_lo": a - b - 1.96 * se, f"b{d}_hi": a - b + 1.96 * se}
     p = profit(m, t)
     lo, hi = ci(profit(m, t, boot_weights(t, seed=seed)))
-    row |= {"margin_t": m[t].mean(), "margin_c": m[~t].mean(), "profit": p, "profit_lo": lo, "profit_hi": hi,
+    row |= {"margin_t": mean(m[t]), "margin_c": mean(m[~t]), "profit": p, "profit_lo": lo, "profit_hi": hi,
             "redeemed_t": df.loc[t, "redeemed"].mean(), "total": p * nt}
     return row
 
