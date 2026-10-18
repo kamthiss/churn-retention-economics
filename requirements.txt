@@ -3,3 +3,4 @@ pandas
 pyarrow
 scipy
 pytest
+psycopg[binary]
